@@ -42,7 +42,7 @@ void *traffic_light_thread(void *arg) {
         long target = tl->next_change; 
         pthread_mutex_unlock(&tl->lock);
 
-        wait_until_tick(target);                         */
+        wait_until_tick(target);                         
         if (!simulation_running) break;
 
         pthread_mutex_lock(&tl->lock);
