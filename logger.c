@@ -4,19 +4,13 @@
 #include "logger.h"
 #include "clock.h"
 
-/* =======================================================================
- * INTEGRANTE 3 - Logger
- * Arquivo: logger.c
- * ===================================================================== */
-
 static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 static FILE *log_file = NULL;
 
 void logger_init(const char *filename) {
     log_file = fopen(filename, "w");
     if (log_file == NULL) {
-        /* Se não conseguir abrir o arquivo, cai para stderr em vez de
-         * derrubar a simulação. */
+
         log_file = stderr;
     }
 }

@@ -3,28 +3,14 @@
 #include "map.h"
 #include "render.h"
 
-/* =======================================================================
- * demo_test.c
- *
- * NÃO faz parte da entrega final do Integrante 1 (que é só map.h/map.c/
- * render.h/render.c). Serve apenas para provar, de forma isolada, que o
- * mapa e a renderização funcionam antes de serem integrados por
- * Integrantes 2 e 3 (threads reais de semáforo/veículo/relógio).
- *
- * Compilar:
- *   gcc -o demo_test demo_test.c map.c render.c -lpthread
- * Executar:
- *   ./demo_test
- * ===================================================================== */
-
 static Map map;
-TrafficLight lights[NUM_INTERSECTIONS]; /* definição real da variável extern declarada em traffic_light.h */
+TrafficLight lights[NUM_INTERSECTIONS]; 
 static Vehicle vehicles[4];
 
 static void init_fake_lights(void) {
     for (int i = 0; i < NUM_INTERSECTIONS; i++) {
         lights[i].id = i;
-        /* alterna verde/vermelho só para demonstrar visualmente */
+
         lights[i].state_horiz = (i % 2 == 0) ? GREEN : RED;
         lights[i].state_vert  = (i % 2 == 0) ? RED   : GREEN;
         pthread_mutex_init(&lights[i].lock, NULL);
@@ -53,11 +39,11 @@ int main(void) {
     map_init(&map);
     init_fake_lights();
 
-    /* Alguns veículos de exemplo em posições válidas de pista. */
-    place_vehicle(0, 0, CAR_FAST,   3, 5);   /* mão dupla superior, faixa de ida */
-    place_vehicle(1, 1, CAR_MEDIUM, 4, 45);  /* mão dupla superior, faixa de volta */
-    place_vehicle(2, 2, CAR_SLOW,   8, 25);  /* mão única 1 */
-    place_vehicle(3, 3, AMBULANCE,  16, 30); /* mão dupla inferior */
+
+    place_vehicle(0, 0, CAR_FAST,   3, 5); 
+    place_vehicle(1, 1, CAR_MEDIUM, 4, 45);  
+    place_vehicle(2, 2, CAR_SLOW,   8, 25); 
+    place_vehicle(3, 3, AMBULANCE,  16, 30); 
 
     render_map(&map, vehicles, 4, lights);
 
