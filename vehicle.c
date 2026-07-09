@@ -7,26 +7,6 @@
 #include "ambulance.h"
 #include "logger.h"
 
-/* =======================================================================
- * INTEGRANTE 3 - Veículos, ambulância, antideadlock, integração
- * Arquivo: vehicle.c
- *
- * ROTAS (Etapa 3.2): pré-definidas, circulares, retangulares. Cada rota
- * usa duas ruas horizontais paralelas (uma para "ida", outra para
- * "volta") e as duas vias verticais como conectoras. Isso garante que
- * nenhum veículo sai do mapa ou anda contra a mão da via, pois cada
- * trecho da rota é construído seguindo exatamente a direção permitida
- * daquela pista (map.c / allowed_dir).
- *
- * 4 rotas são definidas:
- *   R1 - laço externo:  linha 3 (->, mão dupla sup.) / col 39 (v) /
- *                        linha 17 (<-, mão dupla inf.) / col 15 (^)
- *   R2 - usa mão única 1 (linha 8) como trecho de ida
- *   R3 - usa mão única 2 (linha 12) como trecho de ida
- *   R4 - laço interno:  linha 4 (<-, mão dupla sup.) / col 16 (v) /
- *                        linha 16 (->, mão dupla inf.) / col 38 (^)
- * ===================================================================== */
-
 static Direction direction_between(int r1, int c1, int r2, int c2) {
     if (r1 == r2 && c2 == c1 + 1) return DIR_RIGHT;
     if (r1 == r2 && c2 == c1 - 1) return DIR_LEFT;
@@ -35,9 +15,6 @@ static Direction direction_between(int r1, int c1, int r2, int c2) {
     return DIR_NONE;
 }
 
-/* Adiciona ao buffer todas as células entre (r1,c1) [exclusive] e
- * (r2,c2) [inclusive], andando em linha reta (mesma linha ou mesma
- * coluna). Retorna o novo comprimento usado do buffer. */
 static int append_leg(int *buf, int len, int r1, int c1, int r2, int c2) {
     if (r1 == r2) {
         int step = (c2 > c1) ? 1 : -1;
@@ -55,22 +32,16 @@ static int append_leg(int *buf, int len, int r1, int c1, int r2, int c2) {
     return len;
 }
 
-/* Constrói uma rota circular retangular fechada:
- *   (r1,c1) -> (r1,c2) -> (r2,c2) -> (r2,c1) -> ~(r1,c1)
- * O último trecho pára UMA célula antes do ponto inicial; o próprio
- * wrap-around de route_idx (route_idx + 1) % route_len fecha o laço com
- * um passo válido e adjacente, sem duplicar a célula inicial. */
 static int *build_rect_route(int r1, int c1, int r2, int c2, int *out_len) {
     int cap = 2 * (abs(r2 - r1) + abs(c2 - c1)) + 4;
     int *buf = malloc(sizeof(int) * (size_t)cap);
     int len = 0;
 
-    buf[len++] = r1 * MAP_COLS + c1;                 /* ponto inicial       */
-    len = append_leg(buf, len, r1, c1, r1, c2);       /* topo                */
-    len = append_leg(buf, len, r1, c2, r2, c2);       /* lateral (conector)  */
-    len = append_leg(buf, len, r2, c2, r2, c1);       /* base                */
+    buf[len++] = r1 * MAP_COLS + c1;              
+    len = append_leg(buf, len, r1, c1, r1, c2);     
+    len = append_leg(buf, len, r1, c2, r2, c2);   
+    len = append_leg(buf, len, r2, c2, r2, c1);     
 
-    /* fecha o laço subindo/descendo até uma célula antes do início */
     int step = (r1 > r2) ? 1 : -1;
     for (int r = r2 + step; r != r1; r += step)
         buf[len++] = r * MAP_COLS + c1;
@@ -85,10 +56,6 @@ int is_valid_move(int nr, int nc, Direction dir) {
     const Cell *next = &g_map.grid[nr][nc];
     if (next->type == CELL_WALL) return 0;
 
-    /* Em pista comum, a direção do veículo precisa bater com a direção
-     * da via (regra 3.2/4.2 do enunciado). Em cruzamentos, quem decide
-     * se pode entrar é o semáforo (wait_for_green / prioridade), então
-     * não recusamos aqui. */
     if (next->type == CELL_ROAD && next->allowed_dir != dir) return 0;
 
     return dir != DIR_NONE;
@@ -100,7 +67,7 @@ void try_move(Vehicle *v) {
     int nc = target_idx % MAP_COLS;
 
     Direction dir = direction_between(v->row, v->col, nr, nc);
-    if (!is_valid_move(nr, nc, dir)) return; /* segurança extra; não deveria ocorrer com rotas válidas */
+    if (!is_valid_move(nr, nc, dir)) return; 
 
     v->dir = dir;
 
@@ -111,18 +78,14 @@ void try_move(Vehicle *v) {
     Cell *next_cell = &g_map.grid[nr][nc];
     int   inter_id  = next_cell->intersection_id;
 
-    /* 1) Checagem de semáforo antes de tentar qualquer lock de célula. */
     if (inter_id >= 0) {
         if (v->type == AMBULANCE) {
-            request_priority(inter_id, dir); /* força verde, sem pular exclusão mútua */
+            request_priority(inter_id, dir);
         } else {
-            wait_for_green(&lights[inter_id], dir); /* dorme sem consumir CPU */
+            wait_for_green(&lights[inter_id], dir);
         }
     }
 
-    /* 2) Antideadlock: ordenação global de locks por índice linear.
-     * Sempre adquire primeiro o lock de menor índice, e nunca fica
-     * segurando um lock enquanto espera outro (trylock + desistência). */
     Cell *first  = (cur_idx < next_idx) ? cur_cell : next_cell;
     Cell *second = (cur_idx < next_idx) ? next_cell : cur_cell;
 
@@ -130,13 +93,12 @@ void try_move(Vehicle *v) {
     if (pthread_mutex_trylock(&second->lock) != 0) {
         pthread_mutex_unlock(&first->lock);
         if (v->type == AMBULANCE && inter_id >= 0) release_priority(inter_id);
-        return; /* célula ocupada: não segura nada, tenta de novo no próximo tick */
+        return; 
     }
 
-    /* 3) Semáforo de entrada do cruzamento: só 1 veículo por vez dentro. */
+
     if (inter_id >= 0) sem_wait(&lights[inter_id].entry_sem);
 
-    /* Move de fato. */
     cur_cell->occupied    = 0;
     cur_cell->vehicle_id  = -1;
     v->row = nr;
@@ -172,7 +134,6 @@ void *vehicle_thread(void *arg) {
     return NULL;
 }
 
-/* ---- Montagem das rotas e inicialização dos veículos (Etapas 3.1/3.2) --- */
 
 #define NUM_ROUTE_TEMPLATES 4
 
@@ -185,28 +146,26 @@ void vehicles_init_all(Vehicle vehicles[], int n) {
     int *routes[NUM_ROUTE_TEMPLATES];
     int  route_lens[NUM_ROUTE_TEMPLATES];
 
-    /* R1: laço externo (mão dupla superior/inferior + verticais externas) */
     routes[0] = build_rect_route(3, 15, 17, 39, &route_lens[0]);
-    /* R2: mão única 1 (linha 8) + verticais externas */
+
     routes[1] = build_rect_route(8, 15, 17, 39, &route_lens[1]);
-    /* R3: mão única 2 (linha 12) + verticais externas */
+
     routes[2] = build_rect_route(12, 15, 17, 39, &route_lens[2]);
-    /* R4: laço interno (mão dupla superior/inferior + verticais internas) */
+
     routes[3] = build_rect_route(4, 38, 16, 16, &route_lens[3]);
 
-    int n_cars = n - 1; /* último índice é sempre a ambulância */
+    int n_cars = n - 1;
 
     for (int i = 0; i < n_cars; i++) {
         Vehicle *v = &vehicles[i];
         int r = i % NUM_ROUTE_TEMPLATES;
 
         v->id     = i;
-        v->type   = (VehicleType)(i % 3); /* alterna CAR_FAST/MEDIUM/SLOW */
+        v->type   = (VehicleType)(i % 3);
         v->speed  = (v->type == CAR_FAST) ? 1 : (v->type == CAR_MEDIUM) ? 2 : 4;
         v->route  = routes[r];
         v->route_len = route_lens[r];
-        /* espalha os carros ao longo da própria rota, evitando que todos
-         * comecem empilhados na mesma célula */
+
         v->route_idx = (i * 5) % v->route_len;
         v->active = 1;
 
@@ -219,7 +178,6 @@ void vehicles_init_all(Vehicle vehicles[], int n) {
         place_on_map(v);
     }
 
-    /* Ambulância: usa o laço externo (R1), velocidade máxima. */
     Vehicle *amb = &vehicles[n - 1];
     amb->id        = n - 1;
     amb->type      = AMBULANCE;
@@ -237,9 +195,7 @@ void vehicles_init_all(Vehicle vehicles[], int n) {
 }
 
 void vehicles_destroy_all(Vehicle vehicles[], int n) {
-    /* As NUM_ROUTE_TEMPLATES rotas são compartilhadas entre vários
-     * veículos; para não liberar o mesmo ponteiro duas vezes, liberamos
-     * apenas o conjunto de ponteiros únicos. */
+
     int freed[NUM_ROUTE_TEMPLATES] = {0};
     int *unique_ptrs[NUM_ROUTE_TEMPLATES];
     int n_unique = 0;

@@ -1,26 +1,6 @@
 #include <stdio.h>
 #include "map.h"
 
-/* =======================================================================
- * INTEGRANTE 1 - Mapa, estruturas de dados e visualização ASCII
- * Arquivo: map.c
- *
- * Layout implementado (consistente com mapa.md e atividades.md):
- *
- *   - 4 ruas horizontais:
- *       band 0 -> mão dupla superior (linha 3 = "->", linha 4 = "<-")
- *       band 1 -> mão única 1        (linha 8 = "->")
- *       band 2 -> mão única 2        (linha 12 = "->")
- *       band 3 -> mão dupla inferior (linha 16 = "->", linha 17 = "<-")
- *
- *   - 2 vias verticais de mão dupla:
- *       vertical esquerda -> coluna 15 = "^" (DIR_UP), coluna 16 = "v" (DIR_DOWN)
- *       vertical direita  -> coluna 38 = "^" (DIR_UP), coluna 39 = "v" (DIR_DOWN)
- *
- *   - 8 cruzamentos = 4 bandas horizontais x 2 vias verticais.
- *     intersection_id = band_index * 2 + side  (side: 0 = esquerda, 1 = direita)
- *     Isso reproduz exatamente a tabela do plano de ação (IDs 0..7).
- * ===================================================================== */
 
 typedef struct {
     int       row;
@@ -93,25 +73,20 @@ void map_init(Map *m) {
             cell->intersection_id = -1;
 
             if (hb != NULL && vc != NULL) {
-                /* Cruzamento: rua horizontal encontra via vertical.
-                 * O semáforo horizontal (tl->state_horiz) controla a
-                 * entrada de veículos que atravessam esta célula pela
-                 * rua horizontal; o semáforo vertical (tl->state_vert)
-                 * controla quem atravessa pela via vertical no mesmo
-                 * cruzamento (ver traffic_light.h do Integrante 2). */
+                
                 cell->type            = CELL_INTERSECTION;
                 cell->allowed_dir     = hb->dir;
                 cell->intersection_id = hb->band_index * 2 + vc->side;
             } else if (hb != NULL) {
-                /* Pista horizontal comum. */
+           
                 cell->type        = CELL_ROAD;
                 cell->allowed_dir = hb->dir;
             } else if (vc != NULL) {
-                /* Pista vertical comum. */
+               
                 cell->type        = CELL_ROAD;
                 cell->allowed_dir = vc->dir;
             } else {
-                /* Calçada / parede. */
+           
                 cell->type        = CELL_WALL;
                 cell->allowed_dir = DIR_NONE;
             }
