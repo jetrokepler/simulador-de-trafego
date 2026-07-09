@@ -98,7 +98,7 @@ static void render_cell(Cell *cell, const Vehicle *vehicles, int n_vehicles,
     }
 
     /* 4. Parede / calçada. */
-    printf("\u2588\u2588"); /* ██ */
+    printf("  "); /* ██ */
 }
 
 void render_map(Map *m, Vehicle *vehicles, int n_vehicles, TrafficLight *lights) {
