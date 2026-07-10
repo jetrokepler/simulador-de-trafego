@@ -5,6 +5,7 @@
 
 GlobalClock g_clock;
 atomic_int simulation_running = 1;
+long g_tick_us = TICK_US_DEFAULT;
 
 void clock_init(void) {
     g_clock.tick = 0;
@@ -22,7 +23,7 @@ void *clock_thread(void *arg) {
     (void)arg;
 
     while (simulation_running) {
-        usleep(TICK_US);
+        usleep((useconds_t)g_tick_us);
 
         pthread_mutex_lock(&g_clock.lock);
         g_clock.tick++;
