@@ -6,6 +6,18 @@ void request_priority(int inter_id, Direction dir) {
     TrafficLight *tl = &lights[inter_id];
 
     pthread_mutex_lock(&tl->lock);
+
+    /* Etapa 5: registra o estado do cruzamento ANTES da mudanca forcada,
+       para poder comprovar no relatorio que a exclusao mutua das celulas
+       (tratada em try_move/vehicle.c) continua valendo mesmo durante a
+       prioridade da ambulancia — a troca de fase do semaforo aqui nao
+       contorna as travas de celula, apenas antecipa qual sentido fica
+       verde. */
+    log_event("Cruzamento %d: estado ANTES da prioridade horiz=%s vert=%s",
+              inter_id,
+              tl->state_horiz == GREEN ? "GREEN" : "RED",
+              tl->state_vert  == GREEN ? "GREEN" : "RED");
+
     tl->priority = 1;
 
     if (dir == DIR_RIGHT || dir == DIR_LEFT) {
@@ -17,6 +29,12 @@ void request_priority(int inter_id, Direction dir) {
         tl->state_horiz = RED;
         pthread_cond_broadcast(&tl->cond_vert);
     }
+
+    log_event("Cruzamento %d: estado DEPOIS da prioridade horiz=%s vert=%s",
+              inter_id,
+              tl->state_horiz == GREEN ? "GREEN" : "RED",
+              tl->state_vert  == GREEN ? "GREEN" : "RED");
+
     pthread_mutex_unlock(&tl->lock);
 
     log_event("AMBULANCIA solicitou prioridade no cruzamento %d (direcao %s)",
