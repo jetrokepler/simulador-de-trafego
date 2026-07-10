@@ -69,14 +69,35 @@ static void render_cell(Cell *cell, const Vehicle *vehicles, int n_vehicles,
         if (lights != NULL) {
             TrafficLight *tl = &lights[inter_id];
             pthread_mutex_lock(&tl->lock);
-            LightState state = tl->state_horiz;
+            LightState h = tl->state_horiz;
+            LightState vs = tl->state_vert;
             pthread_mutex_unlock(&tl->lock);
-            
-            if (state == GREEN) {
-                printf("%sG %s", COLOR_GREEN, COLOR_RESET);
+
+            /* Etapa 2 (CORRECAO): cada celula de intersecao e compartilhada
+               pelos dois eixos (horizontal e vertical) — ver map.c, uma
+               celula so vira CELL_INTERSECTION quando uma banda horizontal
+               E uma coluna vertical coincidem. Por isso o simbolo mostrado
+               precisa refletir os DOIS estados, nao so state_horiz (bug
+               anterior: metade das indicacoes do semaforo ficava errada). */
+            char symbol;
+            const char *color;
+            if (h == GREEN && vs == GREEN) {
+                /* nao deveria ocorrer em operacao normal; sinalizado para
+                   facilitar deteccao de inconsistencia durante testes */
+                symbol = '!';
+                color  = COLOR_YELLOW;
+            } else if (h == GREEN) {
+                symbol = 'H';   /* verde para quem se move na horizontal */
+                color  = COLOR_GREEN;
+            } else if (vs == GREEN) {
+                symbol = 'V';   /* verde para quem se move na vertical */
+                color  = COLOR_GREEN;
             } else {
-                printf("%sR %s", COLOR_RED, COLOR_RESET);
+                symbol = 'X';   /* fechado nos dois sentidos (transicao segura) */
+                color  = COLOR_RED;
             }
+
+            printf("%s%c %s", color, symbol, COLOR_RESET);
         } else {
             printf("? ");
         }
@@ -101,11 +122,13 @@ void render_map(Map *m, Vehicle *vehicles, int n_vehicles, TrafficLight *lights)
         printf("\n");
     }
 
-    printf("\nLegenda: %s[R]rapido%s  %s[M]medio%s  %s[L]lento%s  %s[@]ambulancia%s  %s[G]verde%s  %s[R]vermelho%s  \u2588\u2588calcada\n",
+    printf("\nLegenda: %s[R]rapido%s  %s[M]medio%s  %s[L]lento%s  %s[@]ambulancia%s  "
+           "%s[H]verde-horizontal%s  %s[V]verde-vertical%s  %s[X]fechado(transicao)%s  \u2588\u2588calcada\n",
            COLOR_YELLOW, COLOR_RESET,
            COLOR_BLUE, COLOR_RESET,
            COLOR_CYAN, COLOR_RESET,
            COLOR_MAGENTA, COLOR_RESET,
+           COLOR_GREEN, COLOR_RESET,
            COLOR_GREEN, COLOR_RESET,
            COLOR_RED, COLOR_RESET);
 }
